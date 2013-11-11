@@ -1,0 +1,34 @@
+Hello!!
+This example shows: 
+->how to spawn processes in two VMs 
+->how to exchange messages between processes
+
+We implement a simple task, find the maximum in a big file using erlang, in two virtual machine, and using gossip protocol(?).
+
+I tried to provide you with enough comments in the code.I used full view instead of partial view. I hope this code to help you!!
+
+Instructions:
+-> Put the modules in the right path in your machine
+1. Open both VMs.
+2. Create a network between them (like we did for project_0).
+3. Assign in one of them ip = 192.168.0.102 (Like we did for project_0-VM2).
+4. Open the terminal in VM2 and write:
+$erl -name slave@192.168.0.102 -setcookie 'password'(assuming that you already install erlang in VM2).
+5. Open the terminal in VM1 and write: $erl (assuming that you already install erlang in VM1).
+6. Compile the modules:
+c(generate_big_file).
+c(readBigFile).
+.
+.
+.
+c(g_main).
+7. Generate your file :
+generate_big_file:generate(File,size,range).
+8. Run the code:
+g_main:main(File).
+
+
+I hope this example to helps you!!
+
+Good Luck!
+Nikos. ;) 
