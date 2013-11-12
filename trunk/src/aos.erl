@@ -1,6 +1,5 @@
 -module(aos).
 
-%-export([longestWordLength/1,longestWord/1,wordInString/2,toLower/1]).
 -compile(export_all).
 
 %% splitPattern() is a private function to return a list of non-word characters
