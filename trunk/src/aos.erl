@@ -18,14 +18,11 @@ toLower(S) when is_bitstring(S) ->
 %% longestWordLength(S) returns the bit-length of the longest word in S if S is 
 %% a bitstring
 longestWordLength(S) when is_bitstring(S) ->
-    lists:max([erlang:bit_size(X) || 
-        X <- binary:split(S,splitPattern(),[global])]).
+    lists:max([erlang:bit_size(X) || X <- wordsIn(S)]).
 
 %% longestWord(S) returns the longest word in S if S is a bitstring
 longestWord(S) when is_bitstring(S) ->
-    hd([X || 
-        X <- binary:split(S,splitPattern(),[global]), 
-        erlang:bit_size(X) == longestWordLength(S)]).
+    hd([X || X <- wordsIn(S), erlang:bit_size(X) == longestWordLength(S)]).
 
 %% wordInList(W,L) returns true if a bitstring word exists in a list of 
 %% bitstring words. This is a helper function for wordInString(S)
@@ -39,21 +36,27 @@ wordInList(W,[H|T]) when is_bitstring(W), is_bitstring(H) ->
     
 %% wordInString(W,S) returns true if word W is in bitstring S
 wordInString(W,S) when is_bitstring(W), is_bitstring(S) ->
-    wordInList(W, [X || 
-        X <- binary:split(S,splitPattern(),[global]), 
-        erlang:bit_size(X) > 0]).
-    
-%% wordFrequency(W,S) returns the interger count of occurences of bitstring word
+    wordInList(W, [X || X <- wordsIn(S), erlang:bit_size(X) > 0]).
+
+%% wordsIn(S) returns a list of the words in bitstring S with no duplicates
+wordsIn(S) when is_bitstring(S) ->
+    sets:to_list(sets:from_list(
+        [toLower(X) || 
+            X <- binary:split(S,splitPattern(),[global]),
+            erlang:bit_size(X) > 0]
+    )).
+
+%% wordFrequency(W,S) returns the integer count of occurences of bitstring word
 %% W in bitstring S
 wordFrequency(W,S) when is_bitstring(W), is_bitstring(S) ->
     length([X || 
         X <- binary:split(S,splitPattern(),[global]), 
-        erlang:bit_size(X) > 0, toLower(W) == toLower(X)]).
+        erlang:bit_size(X) > 0, 
+        toLower(W) == toLower(X)
+    ]).
 
 %% wordFrequencies(S) returns a list of doubles (two-tuples) in which the first
 %% element of each double is a word from bitstring S and the second element of 
 %% each double is the number of occurences of that word in S
 wordFrequencies(S) when is_bitstring(S) ->
-    sets:to_list(sets:from_list([{W,wordFrequency(W,S)} || 
-    W <- binary:split(S,splitPattern(),[global]), 
-    erlang:bit_size(W) > 0])).
+    [{W,wordFrequency(W,S)} || W <- wordsIn(S), erlang:bit_size(W) > 0].
