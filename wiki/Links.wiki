@@ -1,0 +1,7 @@
+Here is the list of important link for project
+
+= Links =
+
+How to create two nodes and can talk each other can be found here. 
+http://www.ejabberd.im/interconnect-erl-nodes
+
