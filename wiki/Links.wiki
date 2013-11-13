@@ -7,3 +7,7 @@ http://www.ejabberd.im/interconnect-erl-nodes
 
 ===Distributed Earlang ===
 http://www.erlang.org/doc/reference_manual/distributed.html
+
+Mnesa distributed database
+
+http://21ccw.blogspot.com/2008/04/getting-started-with-distributed-erlang.html
