@@ -5,3 +5,5 @@ Here is the list of important link for project
 How to create two nodes and can talk each other can be found here. 
 http://www.ejabberd.im/interconnect-erl-nodes
 
+===Distributed Earlang ===
+http://www.erlang.org/doc/reference_manual/distributed.html
