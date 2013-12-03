@@ -1,17 +1,15 @@
 -module(aos).
 
--export([ generateNodes/2, activateRandomNode/2, findPow/2, killAllNodes/1]).
+-export([ generateNodes/1, activateRandomNode/2, killAllNodes/1]).
 
 -record(node, {
-   	fingerTableSize,
-    neighbour = [],
-   	lastGossipNum,
-	busy,
-	fragmentEnabled,
-	r
+      neighbour = [],
+	  age=0,
+	  fragmentForNode = []
+
 }).
 
-
+-record(fragment,{f,i}).
 
 activateRandomNode(NodeId, TotalNodes) ->
 
@@ -25,51 +23,43 @@ activateRandomNode(NodeId, TotalNodes) ->
 			Pid ! {activate}
 	end.
 
-
-generateNodes(N, FragmentEnabled) ->
+%% this function will kill all the nodes first, and then calls the generateThreads(), which will generate threads
+generateNodes(N) ->
 	TotalNodes = N,
-	FingerTableSize=findPow(TotalNodes-1,0),
+	
 	killAllNodes(N*N),
-	generateThreads(N-1, TotalNodes, FingerTableSize, FragmentEnabled).
+	generateThreads(N-1, TotalNodes).
 
 
-generateThreads(N, TotalNodes, FingerTableSize, FragmentEnabled) ->
+%% this function will assign neighbours to the current node, and will generate and register the threads
+
+generateThreads(N, TotalNodes) ->
 	if N == -1 -> 
-		io:format("I am done with Spawning all process ~n ~n"),
-		Node1 = random:uniform(TotalNodes),
-		lists:map(fun(X) -> activateRandomNode(X, TotalNodes) end, [Node1]);
+		io:format("I am done with Spawning all process ~n ~n");
+%%		Node1 = random:uniform(TotalNodes),
+	%%	lists:map(fun(X) -> activateRandomNode(X, TotalNodes) end, [Node1]);
 
 	true -> 	
 		CurrentPID = self(),
 		NodeNum = list_to_atom("Node_" ++ integer_to_list(N)),
 
 		
-
-	
-		UnSortedNeigh= lists:map(fun(X)->(trunc(trunc(N+math:pow(2,X)) rem (trunc(math:pow(2,FingerTableSize)))) rem TotalNodes) end, 
-										lists:seq(0, FingerTableSize-1)),
+UnSortedNeigh = [list_to_atom("Node_" ++ integer_to_list((N+1) rem TotalNodes)), list_to_atom("Node_" ++ integer_to_list((N+2) rem TotalNodes)),list_to_atom("Node_" ++ integer_to_list((N+3) rem TotalNodes)), list_to_atom("Node_" ++ integer_to_list((N+4) rem TotalNodes))],
 
 		random:seed(erlang:now()),
 		MyState = #node{
-						fingerTableSize = FingerTableSize,	
-						neighbour = lists:usort(UnSortedNeigh),
+					
+						neighbour = lists:usort(UnSortedNeigh)
 						
-						r = -1,
-						lastGossipNum = 0,
-						busy = 0,
-						fragmentEnabled = FragmentEnabled},
+					},
 
 		io:format("State : ~w ~w ~n ", [NodeNum, MyState]),
 
 		register(NodeNum, spawn(gossip_avg, gossip, [MyState, N, TotalNodes, CurrentPID])),
-		generateThreads(N-1, TotalNodes, FingerTableSize, FragmentEnabled)
+		generateThreads(N-1, TotalNodes)
 	end.
 
-findPow(TotalNodes, Value) ->
-	A = math:pow(2,Value),
-	if	TotalNodes < A -> Value;
-		true ->	0 + findPow(TotalNodes, Value+1)
-	end.
+
 
 
 killAllNodes(TotalNodes) ->
