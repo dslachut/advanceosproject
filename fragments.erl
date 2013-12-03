@@ -4,7 +4,7 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([split/2,f1/1,my_append/3,main/1,recappend/4,replication/4]).
+-export([split/2,f1/1,my_append/3,main/1,recappend/4,replication/4,longestWord/0,freqWord/0]).
 -record(fragment,
 	{
 	f,
@@ -15,11 +15,30 @@
 %% Internal functions
 %% ====================================================================
 
+printItems(File,Temp2)->
+{ok, S} = file:open(File, write),
+lists:foreach( fun(X) -> io:format(S, "~p.~n",[X]) end, Temp2),
+file:close(S).
+
 split(File,NoOfNodes) -> 						%Splits the file into unit lists.
 	List = readFromFile:readFile(File),			%Calls a method in ReadFile for tokenizing the strings.
+	put(list,List),
 	TList = f1(List), 							%The entire list is divided into unit number lists.
+	%new_file:print(list_to_binary(TList)),
 	Result = trunc(length(TList)/(NoOfNodes-5)),%To reduce the fragment size to a number less than the number of nodes. Since trun is used, it produces one less than the actual node size.
-	my_append(TList,[],Result). 				%To Append the unit words into fragments of same size.
+	my_append(TList,[],Result).		 			%To Append the unit words into fragments of same size.
+	
+
+longestWord() ->
+	List =  get(list),
+	Word = string_Manip:longestWordList(List).
+
+freqWord() ->
+	List =  get(list),
+	Word = string_Manip:wordFrequencies(List),
+	Word2=lists:reverse(lists:sort(Word)).
+	%printItems("sample.txt",Word2).
+	
 
 f1(List)->
 	L=[lists:sublist(List, X, 1) || X <- lists:seq(1,length(List),1)].	%The entire list is divided into unit word lists. [hello,world,number] to [[hello],[world],[number]]
