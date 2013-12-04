@@ -40,6 +40,7 @@ startNode(Frag, FragNum, NList, Time, Master) ->
                       neighbors=NList,
                       clock=Time,
                       master=Master},
+    %Master ! {wfReport, FragNum, Data#node_data.wordFreqs},
     listen(Data).
 
 %% infinitely respond to requests and exchange data
@@ -47,24 +48,35 @@ listen(Data) ->
     receive
         hello -> 
             io:format("Hello!~n"),
+            %broadcast(hello, Data#node_data.neighbors),
             listen(incrementClock(Data));
         longestWord ->
             %io:format(Data#node_data.longestWord),
             Data#node_data.master ! Data#node_data.longestWord,
             listen(incrementClock(Data));
         die   -> 
-            Data#node_data.master ! dying,
+            io:format("Dying ~p~n",[self()]),
+            %Data#node_data.master ! dying,
             exit(self());
         alldie -> 
-            [X#neighbor.pid ! alldie || X <- Data#node_data.neighbors],
-            Data#node_data.master ! dying,
+            %[X#neighbor.pid ! alldie || X <- Data#node_data.neighbors],
+            broadcast(alldie,Data#node_data.neighbors),
+            io:format("Dying ~p~n",[self()]),
+            %Data#node_data.master ! dying,
             exit(self());
+        neighbors ->
+            io:format("~p~n",[Data#node_data.neighbors]),
+            listen(incrementClock(Data));
         {exchange, Share} -> 
             Share#share.sender ! {reply, makeShare(Data)},
             NewData = combine(Share,Data),
             listen(incrementClock(NewData));
+        {wfReport, N, WordFreqs} ->
+            
+            listen(incrementClock(Data));
         {search, Search} ->
-            forwardSearch(Search, Data),
+            %spawn(worker,forwardSearch,[Search, Data]),
+            forwardSearch(Search,Data),
             findWord(Search,Data),
             listen(incrementClock(Data))
     after 1000 -> 
@@ -77,17 +89,24 @@ forwardSearch(Search,Data) ->
     case Search#search.repeats < s() of
         false -> done;
         true ->
-            NewSearch = Search#search{repeats=Search#search.repeats + 1},
-            [X#neighbor.pid ! NewSearch || X <- Data#node_data.neighbors]
+            Reps = Search#search.repeats + 1,
+            NewSearch = Search#search{repeats=Reps},
+            broadcast({search, NewSearch}, Data#node_data.neighbors)
     end.
+
+broadcast(Message,[N|NList]) ->
+    N#neighbor.pid ! Message,
+    broadcast(Message, NList);
+broadcast(_,[]) ->
+    done.
 
 %% Check if word is in the fragment at current node
 findWord(Search,Data) ->
     case aos:wordInString(Search#search.word, Data#node_data.fragment) of
         true -> 
-            io:format("Found "),
-            io:format(Search#search.word),
-            io:format(" at ~p~n", self()),
+            %io:format("Found "),
+            %io:format(Search#search.word),
+            %io:format(" at ~p~n", [self()]),
             Data#node_data.master ! self();
         false -> done
     end.
@@ -108,11 +127,12 @@ lwcombine(Data,LongWord) ->
 
 %% return node's data with new neighbors list
 ncombine(Data,NNList) ->
-    case length(Data#node_data.neighbors) >= 2 of
+    case length(Data#node_data.neighbors) >= c() - length(NNList) of
         true -> ONList = lists:sublist(lists:sort(fun worker:neighborSort/2, Data#node_data.neighbors), c() - length(NNList));
         false -> ONList = Data#node_data.neighbors
     end,
-    NewNList = lists:append(NNList,ONList),
+    NewNList = [N || N <- lists:append(NNList,ONList), N#neighbor.pid =/= self()],
+    %io:format("Neighbors~n~p~n~p~n~p~n",[ONList,NNList,NewNList]),
     Data#node_data{neighbors=NewNList}.
 
 %% return node's data with synched logical clock
@@ -160,8 +180,8 @@ makeShare(Data) ->
 %% Create a sublist of neighbors to share
 makeNeighborList(NList) ->
     case length(NList) of
-        0 -> NList;
-        1 -> NList;
+        0 -> lists:append([#neighbor{pid=self(),age=0}],NList);
+        1 -> lists:append([#neighbor{pid=self(),age=0}],NList);
         _Other -> 
             lists:append([#neighbor{pid=self(),age=0}],lists:sublist(lists:sort(fun worker:neighborSort/2, NList), c() div 2))
     end.
