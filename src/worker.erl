@@ -33,7 +33,7 @@ c() -> 5.
 s() -> 2.
 
 %% Start running the node: construct the node data and start listening
-startNode(Frag, FragNum, NList, Time, Master, IsNode0) ->
+startNode({Frag, FragNum}, NList, Time, Master, IsNode0) ->
     Data = #node_data{fragment=Frag,
                       fragmentNum=FragNum,
                       wordFreqs=aos:wordFrequencies(Frag),
