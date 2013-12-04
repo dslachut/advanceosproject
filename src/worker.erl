@@ -10,6 +10,8 @@
                     longestWord,
                     neighbors=[],
                     master,
+                    allWords,
+                    node0,
                     clock}).
 
 %% Data structure for a neighboring node
@@ -31,7 +33,7 @@ c() -> 5.
 s() -> 2.
 
 %% Start running the node: construct the node data and start listening
-startNode(Frag, FragNum, NList, Time, Master) ->
+startNode(Frag, FragNum, NList, Time, Master, IsNode0) ->
     Data = #node_data{fragment=Frag,
                       fragmentNum=FragNum,
                       wordFreqs=aos:wordFrequencies(Frag),
@@ -41,7 +43,16 @@ startNode(Frag, FragNum, NList, Time, Master) ->
                       clock=Time,
                       master=Master},
     %Master ! {wfReport, FragNum, Data#node_data.wordFreqs},
-    listen(Data).
+    case IsNode0 of
+        false ->
+            FullData = Data#node_data{node0=hd(NList)},
+            reportWF(FullData#node_data.node0, FragNum, Data#node_data.wordFreqs);
+            %Data#node_data.node0 ! {wfReport, FragNum, Data#node_data.wordFreqs};
+        true -> 
+            AllWords = dict:new(),
+            FullData = Data#node_data{allWords=dict:store(FragNum, Data#node_data.wordFreqs, AllWords)}
+    end,
+    listen(FullData).
 
 %% infinitely respond to requests and exchange data
 listen(Data) ->
@@ -72,8 +83,9 @@ listen(Data) ->
             NewData = combine(Share,Data),
             listen(incrementClock(NewData));
         {wfReport, N, WordFreqs} ->
-            
-            listen(incrementClock(Data));
+            NewAllWords = dict:store(N, WordFreqs, Data#node_data.allWords),
+            NewData = Data#node_data{allWords=NewAllWords},
+            listen(incrementClock(NewData));
         {search, Search} ->
             %spawn(worker,forwardSearch,[Search, Data]),
             forwardSearch(Search,Data),
@@ -83,6 +95,10 @@ listen(Data) ->
         NewData = initExchange(Data),
         listen(incrementClock(NewData))
     end.
+
+%% Send a word frequency report to Node 0. Node 0 will then use this data.
+reportWF(Node0, FragNum, Freqs) ->
+    Node0#neighbor.pid ! {wfReport, FragNum, Freqs}.
 
 %% If a search has repeats left, flood it to neighbors
 forwardSearch(Search,Data) ->
