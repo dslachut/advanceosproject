@@ -81,7 +81,7 @@ countAllInstances(Dict,Word,[Key|Keys]) ->
 mostFrequentWord(Dict) ->
     Keys = dict:fetch_keys(Dict),
     AllWords = sets:to_list(sets:from_list(setOfAllWords(Dict,Keys))),
-    {C,MFW} = lists:last(lists:sort([{countAllInstances(Dict,W,Keys),W} || W <- AllWords])),
-    io:format("~p ~p~n",[C,MFW]),
+    {_,MFW} = lists:last(lists:sort([{countAllInstances(Dict,W,Keys),W} || W <- AllWords])),
+    %io:format("~p ~p~n",[C,MFW]),
     MFW.
     
