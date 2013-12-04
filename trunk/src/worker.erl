@@ -21,8 +21,14 @@
                 clock,
                 longestWord}).
 
+-record(search, {word,
+                 repeats}).
+
 %% Constant length of the neighbor list
 c() -> 5.
+
+%% Constant number of times to forward a search
+s() -> 2.
 
 %% Start running the node: construct the node data and start listening
 startNode(Frag, FragNum, NList, Time, Master) ->
@@ -43,22 +49,47 @@ listen(Data) ->
             io:format("Hello!~n"),
             listen(incrementClock(Data));
         longestWord ->
-            io:format(Data#node_data.longestWord),
+            %io:format(Data#node_data.longestWord),
+            Data#node_data.master ! Data#node_data.longestWord,
             listen(incrementClock(Data));
         die   -> 
             Data#node_data.master ! dying,
             exit(self());
         alldie -> 
-            [X ! alldie || {X,_} <- Data#node_data.neighbors],
+            [X#neighbor.pid ! alldie || X <- Data#node_data.neighbors],
             Data#node_data.master ! dying,
             exit(self());
         {exchange, Share} -> 
             Share#share.sender ! {reply, makeShare(Data)},
             NewData = combine(Share,Data),
-            listen(incrementClock(NewData))
+            listen(incrementClock(NewData));
+        {search, Search} ->
+            forwardSearch(Search, Data),
+            findWord(Search,Data),
+            listen(incrementClock(Data))
     after 1000 -> 
         NewData = initExchange(Data),
         listen(incrementClock(NewData))
+    end.
+
+%% If a search has repeats left, flood it to neighbors
+forwardSearch(Search,Data) ->
+    case Search#search.repeats < s() of
+        false -> done;
+        true ->
+            NewSearch = Search#search{repeats=Search#search.repeats + 1},
+            [X#neighbor.pid ! NewSearch || X <- Data#node_data.neighbors]
+    end.
+
+%% Check if word is in the fragment at current node
+findWord(Search,Data) ->
+    case aos:wordInString(Search#search.word, Data#node_data.fragment) of
+        true -> 
+            io:format("Found "),
+            io:format(Search#search.word),
+            io:format(" at ~p~n", self()),
+            Data#node_data.master ! self();
+        false -> done
     end.
 
 %% Return node's data combined with received gossip
@@ -78,10 +109,11 @@ lwcombine(Data,LongWord) ->
 %% return node's data with new neighbors list
 ncombine(Data,NNList) ->
     case length(Data#node_data.neighbors) >= 2 of
-        true -> ONList = lists:sublist(lists:sort(neighborSort, Data#node_data.neighbors), c() - length(NNList));
+        true -> ONList = lists:sublist(lists:sort(fun worker:neighborSort/2, Data#node_data.neighbors), c() - length(NNList));
         false -> ONList = Data#node_data.neighbors
     end,
-    Data#node_data{neighbors=lists:append(NNList,ONList)}.
+    NewNList = lists:append(NNList,ONList),
+    Data#node_data{neighbors=NewNList}.
 
 %% return node's data with synched logical clock
 ccombine(Data, Clock) ->
@@ -127,9 +159,11 @@ makeShare(Data) ->
 
 %% Create a sublist of neighbors to share
 makeNeighborList(NList) ->
-    case length(NList) >= 2 of
-        false -> NList;
-        true -> lists:append([#neighbor{pid=self(),age=0}],lists:sublist(lists:sort(neighborSort, NList), c() div 2))
+    case length(NList) of
+        0 -> NList;
+        1 -> NList;
+        _Other -> 
+            lists:append([#neighbor{pid=self(),age=0}],lists:sublist(lists:sort(fun worker:neighborSort/2, NList), c() div 2))
     end.
 
 %% Returns the node's data with incremented time values
@@ -140,6 +174,6 @@ incrementClock(Data) ->
     NewData = Data#node_data{clock=Clock+1, neighbors=NewNList},
     NewData.
 
-%%
-neighborSort(A,B) ->
+%% Compare two neighbors for sorting
+neighborSort(A,B) -> 
     A#neighbor.age < B#neighbor.age.
