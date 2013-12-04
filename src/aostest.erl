@@ -16,6 +16,7 @@ test() ->
     F5 = {<<"slings and arrows of">>, 5},
     F6 = {<<"outrageous fortune,">>, 6},
     Node0 = spawn(worker,startNode,[F1,[],0,self(),true]),
+    io:format("Node0 PID: ~p~n",[Node0]),
     spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F1,[#neighbor{pid=Node0,age=0}],0,self(),false]),
@@ -28,21 +29,28 @@ test() ->
     receive 
         Msg -> io:format("Longword 1: ~p~n",[Msg])
     after 
-        5000 -> io:format("~p~n",["Fail Longword"])
+        5000 -> io:format("~p~n",["Fail Longword1"])
     end,
     timer:sleep(10000),
     Node0 ! hello,
     Node0 ! neighbors,
-    timer:sleep(1000),
+    timer:sleep(5000),
     Node0 ! longestWord,
-    timer:sleep(1000),
+    timer:sleep(5000),
     receive 
         Msg1 -> io:format("Longword 2: ~p~n",[Msg1])
     after 
-        5000 -> io:format("~p~n",["Fail Longword"])
+        5000 -> io:format("~p~n",["Fail Longword2"])
+    end,
+    Node0 ! mostFrequentWord,
+    timer:sleep(10000),
+    receive 
+        Msg1a -> io:format("Most Frequent Word: ~p~n",[Msg1a])
+    after 
+        5000 -> io:format("~p~n",["Fail Most Frequent Word"])
     end,
     Node0 ! {search, #search{word = <<"fortune">>, repeats=0}},
-    timer:sleep(1000),
+    timer:sleep(5000),
     receive
         Msg2 -> io:format("Found 'fortune' at ~p~n",[Msg2])
     after
@@ -66,4 +74,4 @@ test() ->
     end,
     timer:sleep(10000),
     Node0 ! neighbors,
-    "".
+    <<>>.
