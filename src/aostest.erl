@@ -15,7 +15,7 @@ test() ->
     F4 = {<<"in the mind to suffer">>, 4},
     F5 = {<<"slings and arrows of">>, 5},
     F6 = {<<"outrageous fortune,">>, 6},
-    Node0 = spawn(worker,startNode,[F1,1,[],0,self(),true]),
+    Node0 = spawn(worker,startNode,[F1,[],0,self(),true]),
     spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F1,[#neighbor{pid=Node0,age=0}],0,self(),false]),
