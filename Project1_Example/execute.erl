@@ -38,7 +38,7 @@ createsinglelist([],NewL,FragL) ->
 		 %spawning along with Fragment Record
 	
 	true -> 
-		spawn('slave@192.168.0.102',execute,start,[Data,[],FragL])
+		spawn('slave@169.254.5.235',execute,start,[Data,[],FragL])
 		 %spawning along with Fragment Record
 	end;
 createsinglelist(Fraglist,NewL,FragL) ->
