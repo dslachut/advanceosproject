@@ -59,3 +59,29 @@ wordFrequency(W,S) when is_bitstring(W), is_bitstring(S) ->
 %% each double is the number of occurences of that word in S
 wordFrequencies(S) when is_bitstring(S) ->
     [{W,wordFrequency(W,S)} || W <- wordsIn(S), erlang:bit_size(W) > 0].
+
+setOfAllWords(_,[]) ->
+    [];
+setOfAllWords(Dict,[Key|Keys]) ->
+    Words = [W || {W,_} <- dict:fetch(Key,Dict)],
+    lists:append(setOfAllWords(Dict,Keys), Words).
+
+countAllInstances(_,_,[]) ->
+    0;
+countAllInstances(Dict,Word,[Key|Keys]) ->
+    Count = [C || {W,C} <- dict:fetch(Key,Dict), toLower(W) == toLower(Word)],
+    case length(Count) of
+        0 -> 0 + countAllInstances(Dict,Word,Keys);
+        _Other -> hd(Count) + countAllInstances(Dict,Word,Keys)
+    end.
+
+%% mostFrequentWord(Dict) returns the most frequent word in the dictionary Dict
+%% Dict will have fragment numbers as keys and lists as values, each of those
+%% lists will be the output of the wordFrequencies(S) function
+mostFrequentWord(Dict) ->
+    Keys = dict:fetch_keys(Dict),
+    AllWords = sets:to_list(sets:from_list(setOfAllWords(Dict,Keys))),
+    {C,MFW} = lists:last(lists:sort([{countAllInstances(Dict,W,Keys),W} || W <- AllWords])),
+    io:format("~p ~p~n",[C,MFW]),
+    MFW.
+    

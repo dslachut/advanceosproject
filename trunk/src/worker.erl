@@ -78,6 +78,11 @@ listen(Data) ->
         neighbors ->
             io:format("~p~n",[Data#node_data.neighbors]),
             listen(incrementClock(Data));
+        mostFrequentWord ->
+            W = aos:mostFrequentWord(Data#node_data.allWords),
+            %io:format("~p~n",[W]),
+            Data#node_data.master ! W,
+            listen(incrementClock(Data));
         {exchange, Share} -> 
             Share#share.sender ! {reply, makeShare(Data)},
             NewData = combine(Share,Data),
