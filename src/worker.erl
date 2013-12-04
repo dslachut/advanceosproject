@@ -12,6 +12,7 @@
                     master,
                     allWords,
                     node0,
+                    lastUpdateID=-1,
                     clock}).
 
 %% Data structure for a neighboring node
@@ -50,7 +51,7 @@ startNode({Frag, FragNum}, NList, Time, Master, IsNode0) ->
             %Data#node_data.node0 ! {wfReport, FragNum, Data#node_data.wordFreqs};
         true -> 
             AllWords = dict:new(),
-            FullData = Data#node_data{allWords=dict:store(FragNum, Data#node_data.wordFreqs, AllWords)}
+            FullData = Data#node_data{allWords=dict:store(FragNum, Data#node_data.wordFreqs, AllWords),node0=#neighbor{pid=self()}}
     end,
     listen(FullData).
 
@@ -95,10 +96,45 @@ listen(Data) ->
             %spawn(worker,forwardSearch,[Search, Data]),
             forwardSearch(Search,Data),
             findWord(Search,Data),
-            listen(incrementClock(Data))
+            listen(incrementClock(Data));
+        {update, FragNum, Frag, ID} ->
+            forwardUpdate(Data, FragNum, Frag, ID),
+            NewData = processUpdate(Data, FragNum, Frag, ID),
+            listen(incrementClock(NewData))
     after 1000 -> 
         NewData = initExchange(Data),
         listen(incrementClock(NewData))
+    end.
+
+%% process update of a particular fragment
+processUpdate(Data, N, F, ID) ->
+    case ID > Data#node_data.lastUpdateID of
+        false -> SelfNewData = Data;
+        true -> 
+            IDData = Data#node_data{lastUpdateID=ID},
+            case N == IDData#node_data.fragmentNum of
+                false -> SelfNewData = IDData;
+                true -> 
+                    WF = aos:wordFrequencies(F), % change the word frequencies
+                    LW = aos:longestWord(F), % change longest Word
+                    NewData = IDData#node_data{wordFreqs=WF, longestWord=LW}, % change the fragment
+                    case NewData#node_data.node0#neighbor.pid == self() of
+                        true ->
+                            NewAllWords = dict:store(N, WF, Data#node_data.allWords),
+                            SelfNewData = Data#node_data{allWords=NewAllWords};
+                        false ->
+                            reportWF(NewData#node_data.node0, N, WF),
+                            SelfNewData = NewData
+                    end
+            end
+    end,
+    SelfNewData.
+
+%% forward an update message
+forwardUpdate(Data,N,F,ID) ->
+    case ID < Data#node_data.lastUpdateID of
+        true -> done;
+        false -> broadcast({update, N, F, ID}, Data#node_data.neighbors)
     end.
 
 %% Send a word frequency report to Node 0. Node 0 will then use this data.
