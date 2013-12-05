@@ -4,9 +4,15 @@
 
 -record(neighbor, {pid,age=100000}).
 
-%-record(search, {word,
-%                 id}).
+-record(floodsearch, {word, repeats}).
 
+recloop() ->
+    receive
+        Msg -> io:format("Received: ~p~n",[Msg]),
+        recloop()
+    after
+        10000 -> ok
+    end.
 
 test() ->
     F1 = {<<"To be or not to be,">>, 1},
@@ -51,7 +57,7 @@ test() ->
     after 
         5000 -> io:format("~p~n",["Fail Most Frequent Word"])
     end,
-    Node0 ! {update, 4, <<"ThisIsMyNewFragment of of of of of">>},
+    Node0 ! {update, 5, <<"ThisIsMyNewFragment of of of of of">>},
     timer:sleep(10000),
     Node0 ! longestWord,
     receive 
@@ -95,6 +101,9 @@ test() ->
         5000 -> io:format("~p~n",["Fail Search 2d"])
     end,
     timer:sleep(10000),
+    Node0 ! {floodsearch, #floodsearch{word = <<"to">>,repeats = 0}},
+    recloop(),
+    timer:sleep(10000),
     Node0 ! neighbors,
     Node0 ! alldie,
-    <<>>.
+    done.
