@@ -2,9 +2,9 @@
 
 -compile(export_all).
 
--record(neighbor, {pid,age=100000}).
+-record(neighbor, {pid,age=100000}).   %%% Controller program needs to implement this record type
 
--record(floodsearch, {word, repeats}).
+-record(floodsearch, {word, repeats}). %%% Controller program needs to implement this record type
 
 recloop() ->
     receive
@@ -21,9 +21,9 @@ test() ->
     F4 = {<<"in the mind to suffer">>, 4},
     F5 = {<<"slings and arrows of">>, 5},
     F6 = {<<"outrageous fortune,">>, 6},
-    Node0 = spawn(worker,startNode,[F1,[],0,self(),true]),
+    Node0 = spawn(worker,startNode,[F1,[],0,self(),true]),                       %%%%% Example of spawning first node
     io:format("Node0 PID: ~p~n",[Node0]),
-    spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),
+    spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),    %%%%% Example of spawning additional nodes
     X = spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     Y = spawn(worker,startNode,[F1,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),
@@ -33,7 +33,7 @@ test() ->
     W = spawn(worker,startNode,[F6,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     io:format("'fortune' will be at ~p~n",[W]),
     io:format("'to' will be at ~p, ~p, ~p, and ~p~n", [Node0,X,Y,Z]),
-    Node0 ! longestWord,
+    Node0 ! longestWord,                                                         %%%%% Example of getting the longest word in the document
     receive 
         Msg -> io:format("Longword 1: ~p~n",[Msg])
     after 
@@ -50,14 +50,14 @@ test() ->
     after 
         5000 -> io:format("~p~n",["Fail Longword2"])
     end,
-    Node0 ! mostFrequentWord,
+    Node0 ! mostFrequentWord,                                                    %%%%% Example of getting the most frequent word in the document
     timer:sleep(10000),
     receive 
         Msg1a -> io:format("Most Frequent Word: ~p~n",[Msg1a])
     after 
         5000 -> io:format("~p~n",["Fail Most Frequent Word"])
     end,
-    Node0 ! {update, 5, <<"ThisIsMyNewFragment of of of of of">>},
+    Node0 ! {update, 5, <<"ThisIsMyNewFragment of of of of of">>},               %%%%% Example of updating the contents of fragment number 5
     timer:sleep(10000),
     Node0 ! longestWord,
     receive 
@@ -72,7 +72,7 @@ test() ->
     after 
         5000 -> io:format("~p~n",["Fail New Most Frequent Word"])
     end,
-    Node0 ! {search, <<"fortune">>},
+    Node0 ! {search, <<"fortune">>},                                             %%%%% Example of searching for the word "fortune"
     timer:sleep(5000),
     receive
         Msg2 -> io:format("Found 'fortune' at ~p~n",[Msg2])
@@ -101,9 +101,9 @@ test() ->
         5000 -> io:format("~p~n",["Fail Search 2d"])
     end,
     timer:sleep(10000),
-    Node0 ! {floodsearch, #floodsearch{word = <<"to">>,repeats = 0}},
+    Node0 ! {floodsearch, #floodsearch{word = <<"to">>,repeats = 0}},            %%%%% Example of doing a floodsearch for the word "to"
     recloop(),
     timer:sleep(10000),
     Node0 ! neighbors,
-    Node0 ! alldie,
+    Node0 ! alldie,                                                              %%%%% Example of how do stop all the nodes
     done.
