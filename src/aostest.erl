@@ -49,6 +49,21 @@ test() ->
     after 
         5000 -> io:format("~p~n",["Fail Most Frequent Word"])
     end,
+    Node0 ! {update, 4, <<"ThisIsMyNewFragment of of of of of">>, 7},
+    timer:sleep(10000),
+    Node0 ! longestWord,
+    receive 
+        Msg0 -> io:format("Longword New: ~p~n",[Msg0])
+    after 
+        5000 -> io:format("~p~n",["Fail Longword New"])
+    end,
+    Node0 ! mostFrequentWord,
+    timer:sleep(10000),
+    receive 
+        Msg0a -> io:format("New Most Frequent Word: ~p~n",[Msg0a])
+    after 
+        5000 -> io:format("~p~n",["Fail New Most Frequent Word"])
+    end,
     Node0 ! {search, #search{word = <<"fortune">>, repeats=0}},
     timer:sleep(5000),
     receive
