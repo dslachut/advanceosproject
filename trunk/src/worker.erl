@@ -12,7 +12,8 @@
                     master,
                     allWords,
                     node0,
-                    lastUpdateID=-1,
+                    lastUpdate=undefined,
+                    lastSearch=undefined,
                     clock}).
 
 %% Data structure for a neighboring node
@@ -22,13 +23,16 @@
 -record(share, {sender,
                 neighbors,
                 clock,
-                longestWord}).
+                longestWord,
+                search,
+                update}).
 
--record(search, {word,
-                 repeats}).
+-record(floodsearch, {word, repeats}).
+-record(search, {word, id}).
+-record(update, {fragment, fragmentNum, id}).
 
 %% Constant length of the neighbor list
-c() -> 5.
+c() -> 6.
 
 %% Constant number of times to forward a search
 s() -> 2.
@@ -43,12 +47,10 @@ startNode({Frag, FragNum}, NList, Time, Master, IsNode0) ->
                       neighbors=NList,
                       clock=Time,
                       master=Master},
-    %Master ! {wfReport, FragNum, Data#node_data.wordFreqs},
     case IsNode0 of
         false ->
             FullData = Data#node_data{node0=hd(NList)},
             reportWF(FullData#node_data.node0, FragNum, Data#node_data.wordFreqs);
-            %Data#node_data.node0 ! {wfReport, FragNum, Data#node_data.wordFreqs};
         true -> 
             AllWords = dict:new(),
             FullData = Data#node_data{allWords=dict:store(FragNum, Data#node_data.wordFreqs, AllWords),node0=#neighbor{pid=self()}}
@@ -92,49 +94,29 @@ listen(Data) ->
             NewAllWords = dict:store(N, WordFreqs, Data#node_data.allWords),
             NewData = Data#node_data{allWords=NewAllWords},
             listen(incrementClock(NewData));
-        {search, Search} ->
+        {floodsearch, Search} ->
             %spawn(worker,forwardSearch,[Search, Data]),
             forwardSearch(Search,Data),
-            findWord(Search,Data),
+            findWord(#search{word = Search#floodsearch.word},Data),
             listen(incrementClock(Data));
-        {update, FragNum, Frag, ID} ->
-            forwardUpdate(Data, FragNum, Frag, ID),
-            NewData = processUpdate(Data, FragNum, Frag, ID),
+        {search, Word} ->
+            if
+                Data#node_data.lastSearch == undefined -> ID = 1;
+                true -> ID = Data#node_data.lastSearch#search.id + 1
+            end,
+            Query = #search{word=Word, id=ID},
+            NewData = scombine(Data,Query),
+            listen(incrementClock(NewData));
+        {update, FragNum, NewFrag} ->
+            if Data#node_data.lastUpdate == undefined -> ID = 1;
+                true -> ID = Data#node_data.lastUpdate#update.id + 1
+            end,
+            Update = #update{fragment=NewFrag, fragmentNum=FragNum, id=ID},
+            NewData = ucombine(Data,Update),
             listen(incrementClock(NewData))
     after 1000 -> 
         NewData = initExchange(Data),
         listen(incrementClock(NewData))
-    end.
-
-%% process update of a particular fragment
-processUpdate(Data, N, F, ID) ->
-    case ID > Data#node_data.lastUpdateID of
-        false -> SelfNewData = Data;
-        true -> 
-            IDData = Data#node_data{lastUpdateID=ID},
-            case N == IDData#node_data.fragmentNum of
-                false -> SelfNewData = IDData;
-                true -> 
-                    WF = aos:wordFrequencies(F), % change the word frequencies
-                    LW = aos:longestWord(F), % change longest Word
-                    NewData = IDData#node_data{wordFreqs=WF, longestWord=LW}, % change the fragment
-                    case NewData#node_data.node0#neighbor.pid == self() of
-                        true ->
-                            NewAllWords = dict:store(N, WF, Data#node_data.allWords),
-                            SelfNewData = Data#node_data{allWords=NewAllWords};
-                        false ->
-                            reportWF(NewData#node_data.node0, N, WF),
-                            SelfNewData = NewData
-                    end
-            end
-    end,
-    SelfNewData.
-
-%% forward an update message
-forwardUpdate(Data,N,F,ID) ->
-    case ID < Data#node_data.lastUpdateID of
-        true -> done;
-        false -> broadcast({update, N, F, ID}, Data#node_data.neighbors)
     end.
 
 %% Send a word frequency report to Node 0. Node 0 will then use this data.
@@ -143,12 +125,12 @@ reportWF(Node0, FragNum, Freqs) ->
 
 %% If a search has repeats left, flood it to neighbors
 forwardSearch(Search,Data) ->
-    case Search#search.repeats < s() of
+    case Search#floodsearch.repeats < s() of
         false -> done;
         true ->
-            Reps = Search#search.repeats + 1,
-            NewSearch = Search#search{repeats=Reps},
-            broadcast({search, NewSearch}, Data#node_data.neighbors)
+            Reps = Search#floodsearch.repeats + 1,
+            NewSearch = Search#floodsearch{repeats=Reps},
+            broadcast({floodsearch, NewSearch}, Data#node_data.neighbors)
     end.
 
 broadcast(Message,[N|NList]) ->
@@ -160,20 +142,63 @@ broadcast(_,[]) ->
 %% Check if word is in the fragment at current node
 findWord(Search,Data) ->
     case aos:wordInString(Search#search.word, Data#node_data.fragment) of
-        true -> 
-            %io:format("Found "),
-            %io:format(Search#search.word),
-            %io:format(" at ~p~n", [self()]),
-            Data#node_data.master ! self();
+        true -> Data#node_data.master ! self();
         false -> done
+    end.
+
+%% Return node data with update replaced
+processUpdate(Data, Update) ->
+    if 
+        Data#node_data.fragmentNum == Update#update.fragmentNum ->
+            NewData = Data#node_data{fragment=Update#update.fragment,
+                                     wordFreqs=aos:wordFrequencies(Update#update.fragment),
+                                     longestWord=aos:longestWord(Update#update.fragment),
+                                     lastUpdate=Update};
+        true -> NewData = Data#node_data{lastUpdate=Update}
+    end,
+    if
+        NewData#node_data.node0#neighbor.pid == self() ->
+            NewData#node_data{allWords=dict:store(NewData#node_data.fragmentNum, NewData#node_data.wordFreqs, NewData#node_data.allWords)};
+        true ->
+            reportWF(NewData#node_data.node0, NewData#node_data.fragmentNum, NewData#node_data.wordFreqs),
+            NewData
     end.
 
 %% Return node's data combined with received gossip
 combine(Share,Data) ->
     NData = ncombine(Data,Share#share.neighbors),
     CData = ccombine(NData,Share#share.clock),
-    LongWordData = lwcombine(CData,Share#share.longestWord), 
-    LongWordData.
+    LWData = lwcombine(CData,Share#share.longestWord),
+    SData = scombine(LWData,Share#share.search),
+    ucombine(SData,Share#share.update).
+
+%% Return a node's data, accounting for the new update
+ucombine(Data,Update) ->
+    if
+        Update == undefined ->
+            Data;
+        Data#node_data.lastUpdate == undefined ->
+            processUpdate(Data,Update);
+        Data#node_data.lastUpdate#update.id >= Update#update.id ->
+            Data;
+        true ->
+            processUpdate(Data,Update)
+    end.
+
+%% Return a node's data, accounting for the new search query
+scombine(Data,Query) ->
+    if
+        Query == undefined ->
+            Data;
+        Data#node_data.lastSearch == undefined ->
+            findWord(Query, Data),
+            Data#node_data{lastSearch=Query};
+        Data#node_data.lastSearch#search.id >= Query#search.id ->
+            Data;
+        true ->
+            findWord(Query, Data),
+            Data#node_data{lastSearch=Query}
+    end.
 
 %% return node's data with new longest word
 lwcombine(Data,LongWord) ->
@@ -232,7 +257,9 @@ makeShare(Data) ->
     #share{sender=self(),
            neighbors=makeNeighborList(Data#node_data.neighbors),
            clock=Data#node_data.clock,
-           longestWord=Data#node_data.longestWord}.
+           longestWord=Data#node_data.longestWord,
+           search=Data#node_data.lastSearch,
+           update=Data#node_data.lastUpdate}.
 
 %% Create a sublist of neighbors to share
 makeNeighborList(NList) ->

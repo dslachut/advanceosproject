@@ -4,8 +4,8 @@
 
 -record(neighbor, {pid,age=100000}).
 
--record(search, {word,
-                 repeats}).
+%-record(search, {word,
+%                 id}).
 
 
 test() ->
@@ -18,13 +18,15 @@ test() ->
     Node0 = spawn(worker,startNode,[F1,[],0,self(),true]),
     io:format("Node0 PID: ~p~n",[Node0]),
     spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),
-    spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
-    spawn(worker,startNode,[F1,[#neighbor{pid=Node0,age=0}],0,self(),false]),
+    X = spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
+    Y = spawn(worker,startNode,[F1,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F2,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F3,[#neighbor{pid=Node0,age=0}],0,self(),false]),
-    spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
+    Z = spawn(worker,startNode,[F4,[#neighbor{pid=Node0,age=0}],0,self(),false]),
     spawn(worker,startNode,[F5,[#neighbor{pid=Node0,age=0}],0,self(),false]),
-    spawn(worker,startNode,[F6,[#neighbor{pid=Node0,age=0}],0,self(),false]),
+    W = spawn(worker,startNode,[F6,[#neighbor{pid=Node0,age=0}],0,self(),false]),
+    io:format("'fortune' will be at ~p~n",[W]),
+    io:format("'to' will be at ~p, ~p, ~p, and ~p~n", [Node0,X,Y,Z]),
     Node0 ! longestWord,
     receive 
         Msg -> io:format("Longword 1: ~p~n",[Msg])
@@ -49,7 +51,7 @@ test() ->
     after 
         5000 -> io:format("~p~n",["Fail Most Frequent Word"])
     end,
-    Node0 ! {update, 4, <<"ThisIsMyNewFragment of of of of of">>, 7},
+    Node0 ! {update, 4, <<"ThisIsMyNewFragment of of of of of">>},
     timer:sleep(10000),
     Node0 ! longestWord,
     receive 
@@ -64,18 +66,18 @@ test() ->
     after 
         5000 -> io:format("~p~n",["Fail New Most Frequent Word"])
     end,
-    Node0 ! {search, #search{word = <<"fortune">>, repeats=0}},
+    Node0 ! {search, <<"fortune">>},
     timer:sleep(5000),
     receive
         Msg2 -> io:format("Found 'fortune' at ~p~n",[Msg2])
     after
         5000 -> io:format("~p~n",["Fail Search 1"])
     end,
-    Node0 ! {search, #search{word = <<"to">>, repeats=0}},
+    Node0 ! {search, <<"to">>},
     receive
         Msg3 -> io:format("Found 'to' at ~p~n",[Msg3])
     after
-        5000 -> io:format("Found 'to' at ~p~n",["Fail Search 2a"])
+        5000 -> io:format("~p~n",["Fail Search 2a"])
     end,
     receive
         Msg4 -> io:format("Found 'to' at ~p~n",[Msg4])
@@ -87,6 +89,12 @@ test() ->
     after
         5000 -> io:format("~p~n",["Fail Search 2c"])
     end,
+    receive
+        Msg6 -> io:format("Found 'to' at ~p~n",[Msg6])
+    after
+        5000 -> io:format("~p~n",["Fail Search 2d"])
+    end,
     timer:sleep(10000),
     Node0 ! neighbors,
+    Node0 ! alldie,
     <<>>.
