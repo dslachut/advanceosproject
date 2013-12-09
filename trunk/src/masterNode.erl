@@ -12,7 +12,7 @@
 
 -record(fragment,{f,i}).
 
-recloop() ->
+recloop() -> %Search module for flood search
 receive
 Msg -> io:format("Found the word at ~p~n",[Msg]),
 recloop()
@@ -35,8 +35,6 @@ Frag = {FragNode0#fragment.f,FragNode0#fragment.i},
 Node0 = spawn(worker,startNode,[Frag,[],0,self(),true]),
 {ok,Value} = io:fread("Enter String to update->", "~s"),
 UpdateValue = erlang:list_to_binary(Value),
-N = random:uniform(length(Temp)),
-io:format("~n~p",[N]),
 spawnWorkers(FinalReplFrag--[hd(FinalReplFrag)],Node0,UpdateValue).
 
 spawnWorkers([],Node0,UpdateValue) ->
@@ -66,7 +64,7 @@ Msg1a -> io:format("Most Frequent Word: ~p~n",[Msg1a])
 after
 5000 -> io:format("~p~n",["Fail Most Frequent Word"])
 end,
-Node0 ! {update, 5, UpdateValue}, %%%%% Example of updating the contents of fragment number 5
+Node0 ! {update, 4, UpdateValue}, %%%%% Example of updating the contents of fragment number 5
 io:format("~n**********Updating content entered in fragment*******************~n"),
 timer:sleep(10000),
 Node0 ! longestWord,
@@ -82,7 +80,8 @@ Msg0a -> io:format("Most Frequent Word after update: ~p~n",[Msg0a])
 after
 5000 -> io:format("~p~n",["Fail New Most Frequent Word"])
 end,
-Node0 ! {search, <<"thirteen">>}, %%%%% Example of searching for the word thirteen 
+Node0 ! {search, <<"thirteen">>}, %%%%% Example of searching for the word thirteen
+io:format("~n**************Searching word using Method 2**************~n"), 
 timer:sleep(10000),
 receive
 Msg2 -> io:format("Found word at ~p~n",[Msg2])
@@ -91,14 +90,16 @@ after
 end,
 timer:sleep(10000),
 Node0 ! {floodsearch, #floodsearch{word = <<"to">>,repeats = 0}}, %%%%% Example of doing a floodsearch for the word "to"
+io:format("~n**************Searching word using Flood Search**************~n"),
 recloop(),
 timer:sleep(10000),
 Node0 ! neighbors,
 Node0 ! alldie, %%%%% Example of how do stop all the nodes
+io:format("~n***************Nodes died***********~n"),
 done;
-spawnWorkers(List,Node0,UpdateValue) ->
+spawnWorkers(List,Node0,UpdateValue) -> %Spawns Process for each node
 	FragNode = hd(List),
 	Frag = {FragNode#fragment.f,FragNode#fragment.i},
 	spawn(worker,startNode,[Frag,[#neighbor{pid=Node0,age=0}],0,self(),false]),
 	spawnWorkers(List--[hd(List)],Node0,UpdateValue).
-  
+	
