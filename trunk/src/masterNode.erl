@@ -45,7 +45,7 @@ file:close(S).
 
 spawnWorkers([],Node0,UpdateValue,N) ->
 	io:format("~n*****************Searching for a word**********************"),
-	Node0 ! {search, <<"invented">>}, %%%%% Example of searching for the word "Invented"
+	Node0 ! {search, <<"states">>}, %%%%% Example of searching for the word "Invented"
 	timer:sleep(10000),
 	receive
 		Msg2 -> io:format("~nFound 'word' at ~p~n",[Msg2])
