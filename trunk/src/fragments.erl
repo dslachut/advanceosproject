@@ -62,9 +62,3 @@ replication(Final_List,ReplicatedL,NoOfNodes,RepSize) when RepSize>0 ->
 	L2= Final_List--[RepElement],										%Removes that element from the original list so that it is not replicated again
 	replication(L2,NewList,NoOfNodes,RepSize-1).						%recursively calls itself for RepSize times. If there are 23 nodes in total, the initial fragment size is 
 																		%19 and 4 random fragments from the 19 are replicated, bringing a total of 23.
-
-%print([])->
-%	ok;
-%print([Item|List]) ->
-%	io:format("~p~n",[Item]),
-%	print(List).
